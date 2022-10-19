@@ -1,0 +1,333 @@
+<template>
+	<view class="pages">
+		<!-- #ifndef H5 -->
+		<statusBar></statusBar>
+		<!-- #endif -->
+		<!-- 搜索功能 -->
+		<view class="uni-search-box">
+			<uni-search-bar v-model="keyword" ref="searchBar" radius="100" cancelButton="none" disabled
+				:placeholder="inputPlaceholder" />
+			<view class="cover-search-bar" @click="searchClick"></view>
+		</view>
+		<uni-section title="文字滚动" type="line">
+			<uni-notice-bar show-icon scrollable text="一直滚动,不要停止,一直滚动,不要停止,一直滚动,不要停止,一直滚动,不要停止" />
+		</uni-section>
+		<uni-section title="这是个动画" type="line">
+			<view class="example">
+				<uni-transition ref="ani" custom-class="transition" :mode-class="modeClass" :styles="styles" :show="show"><text class="text">王大锤</text></uni-transition>
+			</view>
+		</uni-section>
+		<uni-section title="操作" subTitle="点击按钮 ,切换动画效果" type="line">
+			<view class="example-body">
+				<button class="transition-button" type="primary" @click="custom">播放动画</button>
+			</view>
+		</uni-section>
+	</view>
+</template>
+
+<script>
+	let cdbRef;
+	import statusBar from "@/uni_modules/uni-nav-bar/components/uni-nav-bar/uni-status-bar";
+
+	import Gps from '@/uni_modules/json-gps/js_sdk/gps.js';
+	const gps = new Gps(),db = uniCloud.database();
+
+	export default {
+		components: {
+			statusBar
+		},
+		computed: {
+			inputPlaceholder(e) {
+				if (uni.getStorageSync('CURRENT_LANG') == "en") {
+					return 'Please enter the search content'
+				} else {
+					return '请输入搜索内容（例如：王大锤）'
+				}
+			},
+			colList(){
+				return [
+					db.collection('opendb-news-articles').where(this.where).field('avatar,title,last_modify_date,user_id').getTemp(),
+					db.collection('uni-id-users').field('_id,username').getTemp()
+				]
+			}
+		},
+		data() {
+			return {
+				where: '"article_status" == 1',
+				keyword: "",
+				showRefresh: false,
+				listHight: 0,
+				show: true,
+				modeClass: 'fade',
+				styles: {}
+			}
+		},
+		onLoad() {
+			// #ifdef APP-NVUE
+			this.styles = {
+				justifyContent: 'center',
+				alignItems: 'center',
+				width: '100px',
+				height: '100px',
+				borderRadius: '5px',
+				textAlign: 'center',
+				backgroundColor: '#4cd964',
+				boxShadow: '0 0 5px 1px rgba(0,0,0,0.2)'
+			}
+			// #endif
+		},
+		watch: {
+			keyword(keyword, oldValue) {
+				let where = '"article_status" == 1 '
+				if (keyword) {
+					this.where = where + `&& /${keyword}/.test(title)`;
+				} else {
+					this.where = where;
+				}
+			}
+		},
+		async onReady() {
+			// #ifdef APP-NVUE
+			/* 可用窗口高度 - 搜索框高 - 状态栏高 */
+			this.listHight = uni.getSystemInfoSync().windowHeight - uni.getSystemInfoSync().statusBarHeight - 50 + 'px';
+			// #endif
+			// #ifndef APP-NVUE
+			this.listHight = 'auto'
+			// #endif
+			cdbRef = this.$refs.udb
+		},
+		async onShow() {
+			this.keyword = getApp().globalData.searchText
+			getApp().globalData.searchText = ''
+			//这里仅演示如何，在onShow生命周期获取设备位置，并在设备或者应用没有权限时自动引导。设置完毕自动重新获取。
+			//你可以基于他做自己的业务，比如：根据距离由近到远排序列表数据等
+			// uni.showLoading({
+			// 	title:"获取定位中"
+			// });
+			//默认h5端不获取定位
+			// #ifndef H5
+			let location = await gps.getLocation({
+				geocode: true
+			})
+			// console.log(location);
+			// #endif
+			// if(location){
+			// 	uni.showToast({
+			// 		title: JSON.stringify(location),
+			// 		icon: 'none'
+			// 	});
+			// }
+			// uni.hideLoading()
+		},
+		methods: {
+			handle(type) {
+				this.show = !this.show
+				this.modeClass = type
+			},
+			custom() {
+				// TODO 下面修改宽高在百度下还有些问题待修复
+				// this.$refs.ani.step({
+				// 	width: '200px'
+				// })
+				// this.$refs.ani.step({
+				// 	height: '150px'
+				// },{
+				// 	delay:100,
+				// 	duration:200
+				// })
+				this.$refs.ani.step({
+					width: '100px',
+					height: '100px',
+					rotate: '180'
+				}, {
+					delay: 200,
+					duration: 300
+				})
+				this.$refs.ani.step({
+					width: '100px',
+					height: '100px',
+					rotate: '0'
+				}, {
+					transformOrigin: '50% 50%'
+				})
+
+				this.$refs.ani.step({
+					translateX: '-100px'
+				}, {
+					timingFunction: 'ease-in',
+					duration: 100
+				})
+
+				this.$refs.ani.step({
+					translateX: '100px'
+				}, {
+					timingFunction: 'ease',
+					duration: 300
+				})
+
+				this.$refs.ani.step({
+					translateX: '50px',
+					scale: 1.5
+				}, {
+					timingFunction: 'linear',
+					duration: 100
+				})
+				this.$refs.ani.step({
+					translateX: '0px',
+					scale: 1
+				}, {
+					timingFunction: 'linear',
+					duration: 150
+				})
+
+				this.$refs.ani.run()
+			},
+			searchClick(e) { //点击搜索框
+				uni.hideKeyboard();
+				uni.navigateTo({
+					url: '/pages/list/search/search',
+					animationType: 'fade-in'
+				});
+			},
+			retry() {
+				this.refresh()
+			},
+			refresh() {
+				cdbRef.loadData({
+					clear: true
+				}, () => {
+					uni.stopPullDownRefresh()
+					// #ifdef APP-NVUE
+					this.showRefresh = false
+					// #endif
+					console.log('end');
+				})
+				console.log('refresh');
+			},
+			loadMore() {
+				cdbRef.loadMore()
+			},
+			onqueryerror(e) {
+				console.error(e);
+			},
+			onpullingdown(e) {
+				console.log(e);
+				this.showRefresh = true
+				if(e.pullingDistance>100){
+					this.refresh()
+				}
+			}
+		},
+		// #ifndef APP-NVUE
+		onPullDownRefresh() {
+			this.refresh()
+		},
+		onReachBottom() {
+			this.loadMore()
+		}
+		// #endif
+	}
+</script>
+
+<style scoped>
+	/* #ifndef APP-NVUE */
+	view {
+		display: flex;
+		box-sizing: border-box;
+		flex-direction: column;
+	}
+	/* #endif */
+	.pages {
+		background-color: #FFFFFF;
+	}
+
+	.avatar {
+		width: 200rpx;
+		height: 200rpx;
+		margin-right: 10rpx;
+	}
+
+	.main {
+		justify-content: space-between;
+		flex: 1;
+	}
+
+	.title {
+		font-size: 16px;
+	}
+
+	.info {
+		flex-direction: row;
+		justify-content: space-between;
+	}
+
+	.author,
+	.last_modify_date {
+		font-size: 14px;
+		color: #999999;
+	}
+
+	.uni-search-box {
+		background-color: #FFFFFF;
+		position: sticky;
+		height: 50px;
+		top: 0;
+		left: 0;
+		/* #ifndef APP-PLUS */
+		z-index: 9;
+		/* #endif */
+		/* #ifdef MP-WEIXIN */
+		width: 580rpx;
+		/* #endif */
+	}
+	.cover-search-bar {
+		height: 50px;
+		position: relative;
+		top: -50px;
+		margin-bottom: -50px;
+		/* #ifndef APP-NVUE */
+		z-index: 999;
+		/* #endif */
+	}	.example {
+		/* #ifndef APP-NVUE */
+		display: flex;
+		/* #endif */
+		justify-content: center;
+		align-items: center;
+		height: 150px;
+		background-color: #fff;
+	}
+
+	.example-body {
+		padding: 10px 20px;
+		padding-bottom: 0px;
+	}
+
+	.transition-button {
+		/* #ifndef APP-NVUE */
+		width: 100%;
+		/* #endif */
+		flex: 1;
+		margin-bottom: 10px;
+	}
+
+	/* #ifndef APP-NVUE */
+	.example ::v-deep .transition {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		width: 100px;
+		height: 100px;
+		border-radius: 5px;
+		text-align: center;
+		background-color: #4cd964;
+		box-shadow: 0 0 5px 1px rgba(0, 0, 0, 0.2);
+	}
+
+	/* #endif */
+
+	.text {
+		font-size: 14px;
+		color: #fff;
+	}
+</style>
